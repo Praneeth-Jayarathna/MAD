@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'generator_detail_screen.dart';
+import 'add_generator_screen.dart';
 
 class Generator {
   final String name;
@@ -26,14 +28,22 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
     setState(() => _generators.removeAt(index));
   }
 
-  void _addGenerator() {
-    setState(() {
-      final n = _generators.length + 1;
-      _generators.add(Generator(
-        name: 'Generator ${n.toString().padLeft(2, '0')}',
-        imagePath: 'assets/images/gen1.jpg',
-      ));
-    });
+  void _addGenerator() async {
+    final result = await Navigator.push<Map<String, String>>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddGeneratorScreen()),
+    );
+    if (result != null) {
+      setState(() {
+        final n = _generators.length + 1;
+        _generators.add(Generator(
+          name: result['name']?.isNotEmpty == true
+              ? result['name']!
+              : 'Generator ${n.toString().padLeft(2, '0')}',
+          imagePath: 'assets/images/gen1.jpg',
+        ));
+      });
+    }
   }
 
   @override
@@ -72,6 +82,14 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
                       return GeneratorCard(
                         generator: _generators[index],
                         onDelete: () => _deleteGenerator(index),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GeneratorDetailScreen(
+                              generator: _generators[index],
+                            ),
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -103,16 +121,20 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
 class GeneratorCard extends StatelessWidget {
   final Generator generator;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   const GeneratorCard({
     super.key,
     required this.generator,
     required this.onDelete,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -154,6 +176,7 @@ class GeneratorCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
