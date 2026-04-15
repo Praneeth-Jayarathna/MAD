@@ -16,7 +16,7 @@ class GeneratorsScreen extends StatefulWidget {
 
 class _GeneratorsScreenState extends State<GeneratorsScreen> {
   final List<Generator> _generators = [
-    const Generator(name: 'Generator 01', imagePath: 'assets/images/gen1.jpg'),
+    const Generator(name: 'Generator 01', imagePath: 'assets/images/gen1.jpeg'),
     const Generator(name: 'Generator 02', imagePath: 'assets/images/gen2.jpg'),
     const Generator(name: 'Generator 03', imagePath: 'assets/images/gen3.jpg'),
     const Generator(name: 'Generator 04', imagePath: 'assets/images/gen4.jpg'),
