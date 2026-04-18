@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'generators_screen.dart';
+import 'fuel_log_detail_screen.dart';
+import 'running_hours_screen.dart';
+import '../widgets/app_title.dart';
 
 class GeneratorDetailScreen extends StatelessWidget {
   final Generator generator;
@@ -16,19 +19,7 @@ class GeneratorDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: Text(
-                    'Fuel Tracker',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
+              const AppTitle(),
 
               // Hero image
               Padding(
@@ -44,7 +35,11 @@ class GeneratorDetailScreen extends StatelessWidget {
                       height: 220,
                       color: const Color(0xFFE0E0E0),
                       child: const Center(
-                        child: Icon(Icons.image_outlined, size: 60, color: Colors.grey),
+                        child: Icon(
+                          Icons.image_outlined,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ),
@@ -87,33 +82,64 @@ class GeneratorDetailScreen extends StatelessWidget {
                       child: _BoldLabel('5 Litres Per Hour Usage'),
                     ),
                     const SizedBox(height: 8),
-                    const _InfoCard(
-                      child: _BoldLabel('10 Litres Remaining'),
+                    const _InfoCard(child: _BoldLabel('10 Litres Remaining')),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RunningHoursScreen(
+                            generator: generator,
+                            initialHours: 12,
+                          ),
+                        ),
+                      ),
+                      child: _InfoCard(
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
+                        ),
+                        child: const _BoldLabel('12 Running Hours Per Day'),
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    _InfoCard(
-                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                      child: const _BoldLabel('12 Running Hours Per Day'),
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            '2026-04-02',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FuelLogDetailScreen(
+                            generator: generator,
+                            date: '2026-04-05',
+                            litresAdded: '50',
+                            rate: '350',
+                          ),
+                        ),
+                      ),
+                      child: _InfoCard(
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              '2026-04-02',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            '50 Litres Added with Rs.350 Per Litre',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ],
+                            SizedBox(height: 2),
+                            Text(
+                              '50 Litres Added with Rs.350 Per Litre',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),

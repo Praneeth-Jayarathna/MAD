@@ -32,7 +32,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 1;
 
-  final List<Widget> _pages = const [
+  static const List<Widget> _pages = [
     Center(child: Text('Home')),
     GeneratorsScreen(),
     Center(child: Text('Report')),
