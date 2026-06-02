@@ -6,8 +6,17 @@ import '../widgets/app_title.dart';
 class Generator {
   final String name;
   final String imagePath;
+  final String code;
+  final String capacity;
+  final String usage;
 
-  const Generator({required this.name, required this.imagePath});
+  const Generator({
+    required this.name,
+    required this.imagePath,
+    this.code = '',
+    this.capacity = '',
+    this.usage = '',
+  });
 }
 
 class GeneratorsScreen extends StatefulWidget {
@@ -111,6 +120,9 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
             name: result['name']?.isNotEmpty == true
                 ? result['name']!
                 : 'Generator ${n.toString().padLeft(2, '0')}',
+            code: result['code'] ?? '',
+            capacity: result['capacity'] ?? '',
+            usage: result['usage'] ?? '',
             imagePath: 'assets/images/gen1.jpeg',
           ),
         );

@@ -4,10 +4,56 @@ import 'fuel_log_detail_screen.dart';
 import 'running_hours_screen.dart';
 import '../widgets/app_title.dart';
 
-class GeneratorDetailScreen extends StatelessWidget {
+class GeneratorDetailScreen extends StatefulWidget {
   final Generator generator;
 
   const GeneratorDetailScreen({super.key, required this.generator});
+
+  @override
+  State<GeneratorDetailScreen> createState() => _GeneratorDetailScreenState();
+}
+
+class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
+  int _runningHours = 12;
+  String _fuelLogDate = '2026-04-02';
+  String _fuelLogLitres = '50';
+  String _fuelLogRate = '350';
+
+  Future<void> _openRunningHours() async {
+    final result = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RunningHoursScreen(
+          generator: widget.generator,
+          initialHours: _runningHours,
+        ),
+      ),
+    );
+    if (result != null) {
+      setState(() => _runningHours = result);
+    }
+  }
+
+  Future<void> _openFuelLog() async {
+    final result = await Navigator.push<Map<String, String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FuelLogDetailScreen(
+          generator: widget.generator,
+          date: _fuelLogDate,
+          litresAdded: _fuelLogLitres,
+          rate: _fuelLogRate,
+        ),
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _fuelLogDate = result['date'] ?? _fuelLogDate;
+        _fuelLogLitres = result['litresAdded'] ?? _fuelLogLitres;
+        _fuelLogRate = result['rate'] ?? _fuelLogRate;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +73,7 @@ class GeneratorDetailScreen extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: Image.asset(
-                    generator.imagePath,
+                    widget.generator.imagePath,
                     width: double.infinity,
                     height: 220,
                     fit: BoxFit.cover,
@@ -59,62 +105,54 @@ class GeneratorDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            generator.name,
+                            widget.generator.name,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'CAT-18KS',
-                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          Text(
+                            widget.generator.code.isNotEmpty
+                                ? widget.generator.code
+                                : 'N/A',
+                            style: const TextStyle(color: Colors.grey, fontSize: 13),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const _InfoCard(
-                      child: _BoldLabel('60 Litres Tank Capacity'),
+                    _InfoCard(
+                      child: _BoldLabel(
+                        widget.generator.capacity.isNotEmpty
+                            ? '${widget.generator.capacity} Litres Tank Capacity'
+                            : 'N/A',
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    const _InfoCard(
-                      child: _BoldLabel('5 Litres Per Hour Usage'),
+                    _InfoCard(
+                      child: _BoldLabel(
+                        widget.generator.usage.isNotEmpty
+                            ? '${widget.generator.usage} Litres Per Hour Usage'
+                            : 'N/A',
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const _InfoCard(child: _BoldLabel('10 Litres Remaining')),
                     const SizedBox(height: 8),
                     GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RunningHoursScreen(
-                            generator: generator,
-                            initialHours: 12,
-                          ),
-                        ),
-                      ),
+                      onTap: _openRunningHours,
                       child: _InfoCard(
                         trailing: const Icon(
                           Icons.chevron_right,
                           color: Colors.grey,
                         ),
-                        child: const _BoldLabel('12 Running Hours Per Day'),
+                        child: _BoldLabel('$_runningHours Running Hours Per Day'),
                       ),
                     ),
                     const SizedBox(height: 8),
                     GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FuelLogDetailScreen(
-                            generator: generator,
-                            date: '2026-04-05',
-                            litresAdded: '50',
-                            rate: '350',
-                          ),
-                        ),
-                      ),
+                      onTap: _openFuelLog,
                       child: _InfoCard(
                         trailing: const Icon(
                           Icons.chevron_right,
@@ -122,18 +160,18 @@ class GeneratorDetailScreen extends StatelessWidget {
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
-                              '2026-04-02',
-                              style: TextStyle(
+                              _fuelLogDate,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                             Text(
-                              '50 Litres Added with Rs.350 Per Litre',
-                              style: TextStyle(
+                              '$_fuelLogLitres Litres Added with Rs.$_fuelLogRate Per Litre',
+                              style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12,
                               ),
