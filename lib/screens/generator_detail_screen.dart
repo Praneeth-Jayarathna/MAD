@@ -4,7 +4,7 @@ import '../models/fuel_log.dart';
 import '../services/database_service.dart';
 import 'generators_screen.dart';
 import 'fuel_log_detail_screen.dart';
-import 'running_hours_screen.dart';
+import 'record_run_screen.dart';
 import '../widgets/app_title.dart';
 
 class GeneratorDetailScreen extends StatefulWidget {
@@ -19,7 +19,6 @@ class GeneratorDetailScreen extends StatefulWidget {
 class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
   final _db = DatabaseService();
   late Generator _generator;
-  int _runningHours = 0;
   List<FuelLog> _fuelLogs = [];
 
   @override
@@ -33,10 +32,7 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
     if (widget.generator.id == null) return;
     final g = await _db.getGenerator(widget.generator.id!);
     if (g != null && mounted) {
-      setState(() {
-        _generator = g;
-        _runningHours = g.runningHours;
-      });
+      setState(() => _generator = g);
       _loadFuelLogs();
     }
   }
@@ -47,31 +43,15 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
     if (mounted) setState(() => _fuelLogs = logs);
   }
 
-  Future<void> _openRunningHours() async {
-    final result = await Navigator.push<int>(
+  Future<void> _recordRun() async {
+    final result = await Navigator.push<Generator>(
       context,
       MaterialPageRoute(
-        builder: (_) => RunningHoursScreen(
-          generator: _generator,
-          initialHours: _runningHours,
-        ),
+        builder: (_) => RecordRunScreen(generator: _generator),
       ),
     );
-    if (result != null && result != _runningHours && _generator.id != null) {
-      final diff = result - _runningHours;
-      final usage = double.tryParse(_generator.usage) ?? 0;
-      final capacity = double.tryParse(_generator.capacity) ?? 0;
-      final consumption = diff > 0 ? diff * usage : 0.0;
-      final newFuel = (_generator.remainingFuel - consumption).clamp(0.0, capacity);
-
-      setState(() {
-        _runningHours = result;
-        _generator = _generator.copyWith(
-          runningHours: result,
-          remainingFuel: newFuel,
-        );
-      });
-      await _db.updateGenerator(_generator);
+    if (result != null) {
+      setState(() => _generator = result);
     }
   }
 
@@ -180,14 +160,39 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    _InfoCard(
+                      child: _BoldLabel(
+                        '${_generator.runningHours} Total Running Hours',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     GestureDetector(
-                      onTap: _openRunningHours,
+                      onTap: _recordRun,
                       child: _InfoCard(
                         trailing: const Icon(
                           Icons.chevron_right,
                           color: Colors.grey,
                         ),
-                        child: _BoldLabel('$_runningHours Running Hours Per Day'),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Record Run Session',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Tap to log running hours',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/generators_screen.dart';
+import 'screens/report_screen.dart';
 
 void main() {
   runApp(const FuelTrackerApp());
@@ -35,7 +36,7 @@ class _MainScreenState extends State<MainScreen> {
   static const List<Widget> _pages = [
     Center(child: Text('Home')),
     GeneratorsScreen(),
-    Center(child: Text('Report')),
+    ReportScreen(),
   ];
 
   @override
