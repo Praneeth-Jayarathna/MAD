@@ -122,22 +122,22 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
   }
 
   void _addGenerator() async {
-    final result = await Navigator.push<Map<String, String>>(
+    final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(builder: (_) => const AddGeneratorScreen()),
     );
     if (result != null) {
       final n = _generators.length + 1;
-      final capacity = double.tryParse(result['capacity'] ?? '') ?? 0;
+      final capacity = double.tryParse(result['capacity'] as String? ?? '') ?? 0;
       final g = Generator(
-        name: result['name']?.isNotEmpty == true
-            ? result['name']!
+        name: (result['name'] as String?)?.isNotEmpty == true
+            ? result['name'] as String
             : 'Generator ${n.toString().padLeft(2, '0')}',
-        code: result['code'] ?? '',
-        capacity: result['capacity'] ?? '',
-        usage: result['usage'] ?? '',
-        imagePath: result['imagePath'] ?? 'assets/images/gen1.jpeg',
-        remainingFuel: capacity,
+        code: result['code'] as String? ?? '',
+        capacity: result['capacity'] as String? ?? '',
+        usage: result['usage'] as String? ?? '',
+        imagePath: result['imagePath'] as String? ?? 'assets/images/gen1.jpeg',
+        remainingFuel: (result['remainingFuel'] as num?)?.toDouble() ?? capacity,
       );
       final id = await _db.insertGenerator(g);
       setState(() => _generators.add(g.copyWith(id: id)));
@@ -174,14 +174,17 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
                         return GeneratorCard(
                           generator: _generators[index],
                           onDelete: () => _deleteGenerator(index),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => GeneratorDetailScreen(
-                                generator: _generators[index],
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => GeneratorDetailScreen(
+                                  generator: _generators[index],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                            _loadGenerators();
+                          },
                         );
                       },
                     ),
