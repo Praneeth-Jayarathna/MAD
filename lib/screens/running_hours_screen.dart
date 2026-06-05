@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/generator.dart';
 import 'generators_screen.dart';
 import '../widgets/app_title.dart';
 
@@ -49,22 +50,11 @@ class _RunningHoursScreenState extends State<RunningHoursScreen> {
                     // Hero image
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: Image.asset(
+                      child: buildGeneratorImage(
                         widget.generator.imagePath,
                         width: double.infinity,
                         height: 220,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          height: 220,
-                          color: const Color(0xFFE0E0E0),
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_outlined,
-                              size: 60,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                     const SizedBox(height: 12),

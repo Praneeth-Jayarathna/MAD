@@ -1,23 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import '../models/generator.dart';
+import '../services/database_service.dart';
 import 'generator_detail_screen.dart';
 import 'add_generator_screen.dart';
 import '../widgets/app_title.dart';
-
-class Generator {
-  final String name;
-  final String imagePath;
-  final String code;
-  final String capacity;
-  final String usage;
-
-  const Generator({
-    required this.name,
-    required this.imagePath,
-    this.code = '',
-    this.capacity = '',
-    this.usage = '',
-  });
-}
 
 class GeneratorsScreen extends StatefulWidget {
   const GeneratorsScreen({super.key});
@@ -27,14 +15,38 @@ class GeneratorsScreen extends StatefulWidget {
 }
 
 class _GeneratorsScreenState extends State<GeneratorsScreen> {
-  final List<Generator> _generators = [
-    const Generator(name: 'Generator 01', imagePath: 'assets/images/gen1.jpeg'),
-    const Generator(name: 'Generator 02', imagePath: 'assets/images/gen2.jpg'),
-    const Generator(name: 'Generator 03', imagePath: 'assets/images/gen3.jpg'),
-    const Generator(name: 'Generator 04', imagePath: 'assets/images/gen4.jpg'),
-  ];
+  final _db = DatabaseService();
+  List<Generator> _generators = [];
+  bool _loading = true;
 
-  void _deleteGenerator(int index) {
+  @override
+  void initState() {
+    super.initState();
+    _loadGenerators();
+  }
+
+  Future<void> _loadGenerators() async {
+    var list = await _db.getGenerators();
+    if (list.isEmpty) {
+      for (final name in [
+        'Generator 01',
+        'Generator 02',
+        'Generator 03',
+        'Generator 04',
+      ]) {
+        await _db.insertGenerator(
+          Generator(name: name, imagePath: 'assets/images/gen1.jpeg'),
+        );
+      }
+      list = await _db.getGenerators();
+    }
+    setState(() {
+      _generators = list;
+      _loading = false;
+    });
+  }
+
+  void _deleteGenerator(int index) async {
     showDialog(
       context: context,
       barrierColor: Colors.black54,
@@ -79,9 +91,11 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        setState(() => _generators.removeAt(index));
+                        final g = _generators.removeAt(index);
+                        if (g.id != null) await _db.deleteGenerator(g.id!);
+                        setState(() {});
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -113,20 +127,20 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
       MaterialPageRoute(builder: (_) => const AddGeneratorScreen()),
     );
     if (result != null) {
-      setState(() {
-        final n = _generators.length + 1;
-        _generators.add(
-          Generator(
-            name: result['name']?.isNotEmpty == true
-                ? result['name']!
-                : 'Generator ${n.toString().padLeft(2, '0')}',
-            code: result['code'] ?? '',
-            capacity: result['capacity'] ?? '',
-            usage: result['usage'] ?? '',
-            imagePath: 'assets/images/gen1.jpeg',
-          ),
-        );
-      });
+      final n = _generators.length + 1;
+      final capacity = double.tryParse(result['capacity'] ?? '') ?? 0;
+      final g = Generator(
+        name: result['name']?.isNotEmpty == true
+            ? result['name']!
+            : 'Generator ${n.toString().padLeft(2, '0')}',
+        code: result['code'] ?? '',
+        capacity: result['capacity'] ?? '',
+        usage: result['usage'] ?? '',
+        imagePath: result['imagePath'] ?? 'assets/images/gen1.jpeg',
+        remainingFuel: capacity,
+      );
+      final id = await _db.insertGenerator(g);
+      setState(() => _generators.add(g.copyWith(id: id)));
     }
   }
 
@@ -136,61 +150,64 @@ class _GeneratorsScreenState extends State<GeneratorsScreen> {
       child: Column(
         children: [
           const AppTitle(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _generators.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.85,
-                        ),
-                    itemBuilder: (context, index) {
-                      return GeneratorCard(
-                        generator: _generators[index],
-                        onDelete: () => _deleteGenerator(index),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => GeneratorDetailScreen(
-                              generator: _generators[index],
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _generators.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.85,
+                          ),
+                      itemBuilder: (context, index) {
+                        return GeneratorCard(
+                          generator: _generators[index],
+                          onDelete: () => _deleteGenerator(index),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => GeneratorDetailScreen(
+                                generator: _generators[index],
+                              ),
                             ),
                           ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: _addGenerator,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.grey, width: 2),
+                          color: Colors.white,
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  GestureDetector(
-                    onTap: _addGenerator,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey, width: 2),
-                        color: Colors.white,
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.grey,
-                        size: 28,
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.grey,
+                          size: 28,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -267,16 +284,40 @@ class GeneratorCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    return Image.asset(
+    return buildGeneratorImage(
       generator.imagePath,
-      fit: BoxFit.cover,
       width: double.infinity,
-      errorBuilder: (_, __, ___) => Container(
-        color: const Color(0xFFE0E0E0),
-        child: const Center(
-          child: Icon(Icons.image_outlined, size: 40, color: Colors.grey),
-        ),
-      ),
+      fit: BoxFit.cover,
     );
   }
+}
+
+Widget buildGeneratorImage(String path, {double? width, double? height, BoxFit? fit}) {
+  if (path.startsWith('assets/')) {
+    return Image.asset(
+      path,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (_, __, ___) => imagePlaceholder(width, height),
+    );
+  }
+  return Image.file(
+    File(path),
+    width: width,
+    height: height,
+    fit: fit,
+    errorBuilder: (_, __, ___) => imagePlaceholder(width, height),
+  );
+}
+
+Widget imagePlaceholder(double? width, double? height) {
+  return Container(
+    width: width,
+    height: height ?? 180,
+    color: const Color(0xFFE0E0E0),
+    child: const Center(
+      child: Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+    ),
+  );
 }

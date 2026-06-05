@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/generator.dart';
+import '../models/fuel_log.dart';
+import '../services/database_service.dart';
 import 'generators_screen.dart';
 import 'fuel_log_detail_screen.dart';
 import 'running_hours_screen.dart';
@@ -14,23 +17,61 @@ class GeneratorDetailScreen extends StatefulWidget {
 }
 
 class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
-  int _runningHours = 12;
-  String _fuelLogDate = '2026-04-02';
-  String _fuelLogLitres = '50';
-  String _fuelLogRate = '350';
+  final _db = DatabaseService();
+  late Generator _generator;
+  int _runningHours = 0;
+  List<FuelLog> _fuelLogs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _generator = widget.generator;
+    _loadGenerator();
+  }
+
+  Future<void> _loadGenerator() async {
+    if (widget.generator.id == null) return;
+    final g = await _db.getGenerator(widget.generator.id!);
+    if (g != null && mounted) {
+      setState(() {
+        _generator = g;
+        _runningHours = g.runningHours;
+      });
+      _loadFuelLogs();
+    }
+  }
+
+  Future<void> _loadFuelLogs() async {
+    if (_generator.id == null) return;
+    final logs = await _db.getFuelLogs(_generator.id!);
+    if (mounted) setState(() => _fuelLogs = logs);
+  }
 
   Future<void> _openRunningHours() async {
     final result = await Navigator.push<int>(
       context,
       MaterialPageRoute(
         builder: (_) => RunningHoursScreen(
-          generator: widget.generator,
+          generator: _generator,
           initialHours: _runningHours,
         ),
       ),
     );
-    if (result != null) {
-      setState(() => _runningHours = result);
+    if (result != null && result != _runningHours && _generator.id != null) {
+      final diff = result - _runningHours;
+      final usage = double.tryParse(_generator.usage) ?? 0;
+      final capacity = double.tryParse(_generator.capacity) ?? 0;
+      final consumption = diff > 0 ? diff * usage : 0.0;
+      final newFuel = (_generator.remainingFuel - consumption).clamp(0.0, capacity);
+
+      setState(() {
+        _runningHours = result;
+        _generator = _generator.copyWith(
+          runningHours: result,
+          remainingFuel: newFuel,
+        );
+      });
+      await _db.updateGenerator(_generator);
     }
   }
 
@@ -39,19 +80,27 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => FuelLogDetailScreen(
-          generator: widget.generator,
-          date: _fuelLogDate,
-          litresAdded: _fuelLogLitres,
-          rate: _fuelLogRate,
+          generator: _generator,
+          date: DateTime.now().toIso8601String().split('T')[0],
+          litresAdded: '',
+          rate: '',
         ),
       ),
     );
-    if (result != null) {
+    if (result != null && _generator.id != null) {
+      final litres = double.tryParse(result['litresAdded'] ?? '') ?? 0;
+      final rate = result['rate'] ?? '';
+      final date = result['date'] ?? '';
+
+      final newFuel = _generator.remainingFuel + litres;
+      await _db.insertFuelLog(
+        FuelLog(generatorId: _generator.id!, date: date, litresAdded: litres.toString(), rate: rate),
+      );
       setState(() {
-        _fuelLogDate = result['date'] ?? _fuelLogDate;
-        _fuelLogLitres = result['litresAdded'] ?? _fuelLogLitres;
-        _fuelLogRate = result['rate'] ?? _fuelLogRate;
+        _generator = _generator.copyWith(remainingFuel: newFuel);
       });
+      await _db.updateGenerator(_generator);
+      _loadFuelLogs();
     }
   }
 
@@ -64,7 +113,6 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               const AppTitle(),
 
               // Hero image
@@ -72,22 +120,11 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: Image.asset(
-                    widget.generator.imagePath,
+                  child: buildGeneratorImage(
+                    _generator.imagePath,
                     width: double.infinity,
                     height: 220,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 220,
-                      color: const Color(0xFFE0E0E0),
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -99,13 +136,12 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // Name + model
                     _InfoCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.generator.name,
+                            _generator.name,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -113,8 +149,8 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            widget.generator.code.isNotEmpty
-                                ? widget.generator.code
+                            _generator.code.isNotEmpty
+                                ? _generator.code
                                 : 'N/A',
                             style: const TextStyle(color: Colors.grey, fontSize: 13),
                           ),
@@ -124,21 +160,25 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                     const SizedBox(height: 8),
                     _InfoCard(
                       child: _BoldLabel(
-                        widget.generator.capacity.isNotEmpty
-                            ? '${widget.generator.capacity} Litres Tank Capacity'
+                        _generator.capacity.isNotEmpty
+                            ? '${_generator.capacity} Litres Tank Capacity'
                             : 'N/A',
                       ),
                     ),
                     const SizedBox(height: 8),
                     _InfoCard(
                       child: _BoldLabel(
-                        widget.generator.usage.isNotEmpty
-                            ? '${widget.generator.usage} Litres Per Hour Usage'
+                        _generator.usage.isNotEmpty
+                            ? '${_generator.usage} Litres Per Hour Usage'
                             : 'N/A',
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const _InfoCard(child: _BoldLabel('10 Litres Remaining')),
+                    _InfoCard(
+                      child: _BoldLabel(
+                        '${_generator.remainingFuel.toStringAsFixed(1)} Litres Remaining',
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: _openRunningHours,
@@ -161,16 +201,16 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _fuelLogDate,
-                              style: const TextStyle(
+                            const Text(
+                              'Add Fuel',
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '$_fuelLogLitres Litres Added with Rs.$_fuelLogRate Per Litre',
+                              'Tap to record fuel addition',
                               style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12,
@@ -181,6 +221,52 @@ class _GeneratorDetailScreenState extends State<GeneratorDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Fuel log history header
+                    if (_fuelLogs.isNotEmpty) ...[
+                      const Text(
+                        'Fuel History',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._fuelLogs.map((log) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _InfoCard(
+                          child: Row(
+                            children: [
+                              Text(
+                                log.date,
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '+${log.litresAdded} L',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Rs. ${log.rate}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )),
+                    ],
                   ],
                 ),
               ),
